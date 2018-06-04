@@ -54,10 +54,17 @@ class DBWNode(object):
                                          BrakeCmd, queue_size=1)
 
         # TODO: Create `Controller` object
-        # self.controller = Controller(<Arguments you wish to provide>)
+        self.controller = Controller(wheel_base, steer_ratio, max_lat_accel, max_steer_angle, vehicle_mass, wheel_radius)
 
         # TODO: Subscribe to all the topics you need to
+        rospy.Subscriber('/dbw_enabled', Bool, self.dbw_enabled_cb)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb, queue_size=1)
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb, queue_size=1)
 
+        self.is_dbw_enabled = True
+        self.current_velocity = 0.0
+        self.twist_cmd = None
+        
         self.loop()
 
     def loop(self):
@@ -72,6 +79,14 @@ class DBWNode(object):
             #                                                     <any other argument you need>)
             # if <dbw is enabled>:
             #   self.publish(throttle, brake, steer)
+            
+            if self.is_dbw_enabled and not self.twist_cmd is None and not self.current_velocity is None:
+                throttle, brake, steering = self.controller.control(self.twist_cmd.twist.linear,
+                                                                    self.twist_cmd.twist.angular,
+                                                                    self.current_velocity.twist.linear,
+                                                                    self.current_velocity.twist.angular,
+                                                                    self.is_dbw_enabled)
+                self.publish(throttle, brake, steer)
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
@@ -91,6 +106,17 @@ class DBWNode(object):
         bcmd.pedal_cmd_type = BrakeCmd.CMD_TORQUE
         bcmd.pedal_cmd = brake
         self.brake_pub.publish(bcmd)
+    
+    def dbw_enabled_cb(self, msg):
+        rospy.loginfo("DBW status changed to: %s", msg)
+        self.is_dbw_enabled = msg
+
+    def current_velocity_cb(self, msg):
+        self.current_velocity = msg
+
+    def twist_cmd_cb(self, msg):
+        rospy.loginfo("Received twist command %s", msg)
+        self.twist_cmd = msg
 
 
 if __name__ == '__main__':
