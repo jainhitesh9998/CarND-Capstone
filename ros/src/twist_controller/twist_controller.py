@@ -1,17 +1,20 @@
+from pid import PID
+from yaw_controller import YawController
+import rospy
 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
 
 Kp_t = 1.0
-Ki_t = 0.001
-Kd_t = 3.0
+Ki_t = 0.0001
+Kd_t = 0.32
 
 MIN_THROTTLE = -1.0
 MAX_THROTTLE = 1.0
 
-Kp_s = 1.0
-Ki_s = 0.001
-Kd_s = 3.0
+Kp_s = 0.8
+Ki_s = 0.0001
+Kd_s = 0.32
 
 class Controller(object):
     def __init__(self, wheel_base, steer_ratio, max_lat_accel, max_steer_angle, vehicle_mass, wheel_radius):
@@ -25,6 +28,7 @@ class Controller(object):
         self.vehicle_mass  = vehicle_mass
         self.wheel_radius  = wheel_radius
         self.min_speed = 0.0
+        self.speed_limit = 30.0
         
         self.yaw_controller = YawController(self.wheel_base, self.steer_ratio, self.min_speed, self.max_lat_accel, self.max_steer_angle)
         
@@ -42,8 +46,7 @@ class Controller(object):
         
         dt = rospy.get_time() - self.previous_timestamp
         
-        error_v = min(target_lv.x, 30.0*ONE_MPH) - current_lv.x
-        error_v = max(self.decel_limit*dt, min(self.accel_limit*dt, error_v))
+        error_v = min(target_lv.x, self.speed_limit*ONE_MPH) - current_lv.x
 
         throttle = self.throttle_pid.step(error_v, dt)
         throttle = max(0.0, min(1.0, throttle))
@@ -55,14 +58,14 @@ class Controller(object):
         else:
             brake = 0.0
 
-        if abs(target_v.x) < 0.1:
+        if abs(target_lv.x) < 0.1:
             brake = 100.0
             
-        steering = self.yaw_controller.get_steering(target_lv, target_av, current_lv)
+        steering = self.yaw_controller.get_steering(target_lv.x, target_av.z, current_lv.x)
         steering = self.steering_pid.step(steering, dt)
 
-        rospy.loginfo("velocity => target: %f  | current: %f ", target_lv, current_lv)
-        rospy.loginfo("steering => target: %f  | current: %f ", target_av, current_av)
+        rospy.loginfo("velocity => target: %f  | current: %f ", target_lv.x, current_lv.x)
+        rospy.loginfo("steering => target: %f  | current: %f ", target_av.x, current_av.x)
         rospy.loginfo("throttle: %f  | brake: %f  | Steer: %f", throttle, brake, steering)
         
-        return throttle, brake, steer
+        return throttle, brake, steering
