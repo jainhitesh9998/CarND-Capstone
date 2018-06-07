@@ -4,7 +4,7 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
 ### Team Members
 | Name                       | Email              |
 |:---------------------------|:-------------------|
-| Hitesh            |
+| Hitesh            | hitesh@infosys.com
 | Disha Patel       | disha.patel@infosys.com     |
 | Vinay Trivedi     | vinay.trivedi@infosys.com   |
 
